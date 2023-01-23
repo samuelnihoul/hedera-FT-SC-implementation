@@ -72,7 +72,7 @@ contract WeeklyAuction {
                     bids[bidderList[i]] /totalBiddedAmount
                 );
             }
-            tokenToBeAttributed.safeTransferFrom(address(this), harmonia_eko,0.01*totalBiddedAmount);
+            tokenToBeAttributed.safeTransferFrom(address(this), harmonia_eko,totalBiddedAmount/100);
         }
         emit End(bidderList);
         start();
