@@ -1,48 +1,37 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
+import "../../hedera-smart-contracts/contracts/safe-hts-precompile/SafeHTS.sol";
 
-interface Token {
-    function safeTransferFrom(
-        address from,
-        address to,
-        uint256 tokenId
-    ) external;
 
-    function transferFrom(address, address, uint256) external;
-}
 
-contract WeeklyAuction {
+contract KarbonMoneta is SafeHTS {
     event Start(uint256 auctionNumber);
     event Bid(address indexed sender, uint256 amount);
     event End(address[] bidderList);
-    Token public tokenToBeAttributed;
+    Token public token;
     uint256 public endAt;
     bool public started;
     bool public ended;
     string tokenID;
     address[] bidderList;
-    address harmonia_eko;
+    address corporateAddress;
     mapping(address => uint256) public bids;
     uint256 public totalBiddedAmount;
     uint256 public auctionNumber;
-    
 
-    constructor(
-        address _tokenToBeAttributed,
-        string memory _tokenID,
-        address _harmonia_eko
-    ) {
-        tokenToBeAttributed = Token(_tokenToBeAttributed);
-        tokenID = _tokenID;
-        
-        
-        harmonia_eko
-            = _harmonia_eko;
+    constructor() {
+        corporateAddress = msg.sender;
+    }
+
+    function createToken() public {
+        IHederaTokenService.HederaToken _token= IHederaTokenService.HederaToken(name:'Karbon Moneta',symbol:'KM',treasury:corporateAddress)
+        require(msg.sender == corporateAddress, "not authority");
+        safeCreateFungibleToken(token)
     }
 
     function start() public {
         require(!started, "started");
-        require(msg.sender == harmonia_eko, "not authority");
+        require(msg.sender == corporateAddress, "not authority");
         tokenToBeAttributed.transferFrom(msg.sender, address(this), 1);
         auctionNumber += 1;
         started = true;
@@ -69,10 +58,14 @@ contract WeeklyAuction {
                 tokenToBeAttributed.safeTransferFrom(
                     address(this),
                     bidderList[i],
-                    bids[bidderList[i]] /totalBiddedAmount
+                    bids[bidderList[i]] / totalBiddedAmount
                 );
             }
-            tokenToBeAttributed.safeTransferFrom(address(this), harmonia_eko,totalBiddedAmount/100);
+            tokenToBeAttributed.safeTransferFrom(
+                address(this),
+                corporateAddress,
+                totalBiddedAmount / 100
+            );
         }
         emit End(bidderList);
         start();
