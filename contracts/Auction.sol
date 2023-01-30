@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: MIT
 pragma solidity 0.8.17;
-import "../../hedera-smart-contracts/contracts/safe-hts-precompile/SafeHTS.sol";
-
-contract KarbonMoneta is SafeHTS {
+import "./ExpiryHelper.sol";
+// import "../../hedera-smart-contracts/contracts/safe-hts-precompile/HederaTokenService.SafeHTS.sol";
+contract KarbonMoneta is ExpiryHelper {
+    
     event Start(uint256 auctionNumber);
     event Bid(address indexed sender, uint256 amount);
     event End(address[] bidderList);
-    IHederaTokenService.HederaToken public token= IHederaTokenService.HederaToken(name:'Karbon Moneta',symbol:'KM',treasury:corporateAddress);
     uint256 public endAt;
     bool public started;
     bool public ended;
@@ -16,10 +16,27 @@ contract KarbonMoneta is SafeHTS {
     mapping(address => uint256) public bids;
     uint256 public totalBiddedAmount;
     uint256 public auctionNumber;
-
-    constructor() {
+  constructor() {
         corporateAddress = msg.sender;
-        tokenAddress=safeCreateFungibleToken(token,1100000000000000,8)
+        IHederaTokenService.Expiry memory expiry =ExpiryHelper.createAutoRenewExpiry(corporateAddress, 7776000);
+IHederaTokenService.TokenKey[]memory keys = new IHederaTokenService.TokenKey[](2);
+            
+        // Set this contract as supply
+        keys[0] =HederaTokenService.SafeHTS.getSingleKey(
+            KeyType.SUPPLY,
+            HederaTokenService.KeyValueType.CONTRACT_ID,
+            address(this)
+        );
+        keys[1] = HederaTokenService.SafeHTS.getSingleKey(
+            HederaTokenService.SafeHTS.KeyType.ADMIN,
+            HederaTokenService.SafeHTS.KeyValueType.INHERIT_ACCOUNT_KEY,
+            corporateAddress
+        );
+
+
+
+    IHederaTokenService.HederaToken calldata token= IHederaTokenService.HederaToken({name:"Karbon Moneta",memo:"The proof of carbon removal currency",symbol:"KM",tokenSupplyType:true,maxSupply:5000000000,freezeDefault:false,expiry:expiry,tokenKeys:keys,treasury:address(this)});
+        tokenAddress=HederaTokenService.SafeHTS.safeCreateFungibleToken(token,1100000000000000,8);
     }
 
     function start() public {
@@ -45,16 +62,16 @@ contract KarbonMoneta is SafeHTS {
         require(block.timestamp >= endAt, "not ended");
         require(!ended, "ended");
         ended = true;
-        SafeHTS.safeMintToken(tokenAddress,100000000);
+        HederaTokenService.SafeHTS.safeMintToken(tokenAddress,100000000,new bytes[]);
         if (bidderList.length != 0) {
             for (uint64 i = 0; i < bidderList.length; i++) {
-                SafeHTS.safeTransferToken(
+                HederaTokenService.SafeHTS.safeTransferToken(
                     address(this),
                     bidderList[i],
                     bids[bidderList[i]] / totalBiddedAmount
                 );
             }
-            SafeHTS.safeTransferFrom(
+            HederaTokenService.SafeHTS.safeTransferFrom(
                 address(this),
                 corporateAddress,
                 totalBiddedAmount / 100
